@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
+using DungeonRush;
 
 class Program
 {
     static char[,] map = new char[25, 25];
-    static bool[,] monsterLocations = new bool[25, 25];
+    static Monster[,] monsterLocations = new Monster[25, 25];
+    static Boss[,] bossLocations = new Boss[25, 25];
     static bool[,] treasureLocations = new bool[25, 25];
     static int playerX, playerY;
     static int healthPotions = 2;
@@ -15,6 +18,7 @@ class Program
     {
         InitializeMap();
         PlaceMonsters(10);
+        PlaceBoss(3);
         PlaceTreasures(6);
 
         player = SelectCharacter();
@@ -57,7 +61,51 @@ class Program
 
     static void PlaceMonsters(int count)
     {
-        PlaceItems(count, monsterLocations);
+        List<Monster> monsterList = new List<Monster>
+        {
+            Monsters.Slime,
+            Monsters.Imp,
+            Monsters.BloodWarrior,
+            Monsters.Orc,
+            Monsters.Vampire,
+            Monsters.TrapChest
+        };
+
+        for (int i = 0; i < count; i++)
+        {
+            int x, y;
+            Monster monster = monsterList[rand.Next(monsterList.Count)];
+            do
+            {
+                x = rand.Next(25);
+                y = rand.Next(25);
+            }
+            while (monsterLocations[x, y] != null);
+            monsterLocations[x, y] = monster;
+        }
+    }
+
+    static void PlaceBoss(int count)
+    {
+        List<Boss> bossList = new List<Boss>
+        {
+            Bosses.UndeadDragon,
+            Bosses.Cerberus,
+            Bosses.VexarTheFearDevil
+        };
+
+        for (int i = 0; i < count; i++)
+        {
+            int x, y;
+            Boss boss = bossList[rand.Next(bossList.Count)];
+            do
+            {
+                x = rand.Next(25);
+                y = rand.Next(25);
+            }
+            while (bossLocations[x, y] != null);
+            bossLocations[x, y] = boss;
+        }
     }
 
     static void PlaceTreasures(int count)
@@ -85,7 +133,7 @@ class Program
         Console.Write("\nSelect your character (1-Warrior, 2-Mage, 3-Rogue): ");
         switch (Console.ReadKey().KeyChar)
         {
-            case '1': return new Character("Warrior", 7, 3);
+            case '1': return new Character("Warrior", 100, 3000);
             case '2': return new Character("Mage", 6, 2);
             case '3': return new Character("Rogue", 6, 3);
             default: return SelectCharacter();
@@ -109,6 +157,10 @@ class Program
             {
                 if (i == playerX && j == playerY)
                     Console.Write('P');
+                else if (monsterLocations[i, j] != null)
+                    Console.Write('M');
+                else if (bossLocations[i, j] != null)
+                    Console.Write('B');
                 else
                     Console.Write(map[i, j]);
             }
@@ -129,10 +181,15 @@ class Program
 
     static void CheckLocation()
     {
-        if (monsterLocations[playerX, playerY])
+        if (monsterLocations[playerX, playerY] != null)
         {
-            Fight();
-            monsterLocations[playerX, playerY] = false; // Remove the monster after the fight
+            Fight(monsterLocations[playerX, playerY]);
+            monsterLocations[playerX, playerY] = null; // Remove the monster after the fight
+        }
+        else if (bossLocations[playerX, playerY] != null)
+        {
+            FightBoss(bossLocations[playerX, playerY]);
+            monsterLocations[playerX, playerY] = null; // Remove the monster after the fight
         }
         else if (treasureLocations[playerX, playerY])
         {
@@ -141,44 +198,296 @@ class Program
         }
     }
 
-    static void Fight()
+    static void Fight(Monster monster)
     {
-        int monsterAttack = rand.Next(1, 7);
-        int playerRoll = player.Attack + rand.Next(1, 7);
-        if (monsterAttack >= playerRoll)
+        Console.WriteLine($"You encountered a {monster.Name}!");
+        while (player.Life > 0 && monster.HP > 0)
         {
-            player.Life--;
-            Console.WriteLine("You've been hit! Current life: " + player.Life);
-            if (player.Life == 0)
+            Console.WriteLine($"Player HP: {player.Life}, Monster HP: {monster.HP}");
+            Console.WriteLine("Choose your action: (1) Attack, (2) Use Skill");
+            char input = Console.ReadKey().KeyChar;
+
+            int playerDamage = 0;
+            if (input == '1')
+            {
+                playerDamage = player.Attack + rand.Next(1, 7);
+                Console.WriteLine($"You attacked the {monster.Name} for {playerDamage} damage.");
+            }
+            else if (input == '2')
+            {
+                if (player.Skills.Count > 0)
+                {
+                    Console.WriteLine("Choose a skill:");
+                    for (int i = 0; i < player.Skills.Count; i++)
+                    {
+                        Console.WriteLine($"{i + 1}: {player.Skills[i]}");
+                    }
+                    int skillIndex = int.Parse(Console.ReadKey().KeyChar.ToString()) - 1;
+                    playerDamage = player.UseSkill(skillIndex);
+                    Console.WriteLine($"You used {player.Skills[skillIndex]} on the {monster.Name} for {playerDamage} damage.");
+                }
+                else
+                {
+                    Console.WriteLine("You have no skills to use. Defaulting to attack.");
+                    playerDamage = player.Attack + rand.Next(1, 7);
+                }
+            }
+            else
+            {
+                Console.WriteLine("Invalid choice. Defaulting to attack.");
+                playerDamage = player.Attack + rand.Next(1, 7);
+            }
+
+            monster.HP -= playerDamage;
+
+            if (monster.HP <= 0)
+            {
+                Console.WriteLine($"You defeated the {monster.Name}!");
+                break;
+            }
+
+            int monsterDamage = monster.Attack + rand.Next(1, 7);
+            player.Life -= monsterDamage;
+            Console.WriteLine($"The {monster.Name} attacked you for {monsterDamage} damage.");
+
+            if (player.Life <= 0)
             {
                 Console.WriteLine("You have died. Game over!");
                 Environment.Exit(0);
             }
         }
-        else
+    }
+
+    static void FightBoss(Boss boss)
+    {
+        Console.WriteLine($"You encountered a {boss.Name}!");
+        while (player.Life > 0 && boss.HP > 0)
         {
-            Console.WriteLine("You defeated the monster!");
+            Console.WriteLine($"Player HP: {player.Life}, Monster HP: {boss.HP}");
+            Console.WriteLine("Choose your action: (1) Attack, (2) Use Skill");
+            char input = Console.ReadKey().KeyChar;
+
+            int playerDamage = 0;
+            if (input == '1')
+            {
+                playerDamage = player.Attack + rand.Next(1, 7);
+                Console.WriteLine($"You attacked the {boss.Name} for {playerDamage} damage.");
+            }
+            else if (input == '2')
+            {
+                if (player.Skills.Count > 0)
+                {
+                    Console.WriteLine("Choose a skill:");
+                    for (int i = 0; i < player.Skills.Count; i++)
+                    {
+                        Console.WriteLine($"{i + 1}: {player.Skills[i]}");
+                    }
+                    int skillIndex = int.Parse(Console.ReadKey().KeyChar.ToString()) - 1;
+                    playerDamage = player.UseSkill(skillIndex);
+                    Console.WriteLine($"You used {player.Skills[skillIndex]} on the {boss.Name} for {playerDamage} damage.");
+                }
+                else
+                {
+                    Console.WriteLine("You have no skills to use. Defaulting to attack.");
+                    playerDamage = player.Attack + rand.Next(1, 7);
+                }
+            }
+            else
+            {
+                Console.WriteLine("Invalid choice. Defaulting to attack.");
+                playerDamage = player.Attack + rand.Next(1, 7);
+            }
+
+            boss.HP -= playerDamage;
+
+            if (boss.HP <= 0)
+            {
+                Console.WriteLine($"You defeated the {boss.Name}!");
+                break;
+            }
+
+            int monsterDamage = boss.Attack + rand.Next(1, 7);
+            player.Life -= monsterDamage;
+            Console.WriteLine($"The {boss.Name} attacked you for {monsterDamage} damage.");
+
+            if (player.Life <= 0)
+            {
+                Console.WriteLine("You have died. Game over!");
+                Environment.Exit(0);
+            }
         }
     }
 }
 
-class Character
+
+
+public class Character
 {
-    public string Type;
-    public int Attack;
-    public int Life;
+    public string Type { get; set; }
+    public int Attack { get; set; }
+    public int Life { get; set; }
+    public List<string> Skills { get; set; }
 
     public Character(string type, int attack, int life)
     {
         Type = type;
         Attack = attack;
         Life = life;
+        Skills = new List<string>();
+    }
+
+    public int UseSkill(int skillIndex)
+    {
+        if (skillIndex < 0 || skillIndex >= Skills.Count)
+            throw new ArgumentException("Invalid skill index.");
+
+        // Skill logic here; for now we return a fixed value for simplicity
+        return Attack + 10; // This is an example, customize as needed
     }
 }
 
 
-class Slime
+namespace DungeonRush
 {
-    public int Attack;
-    public int Life;
+    public class Monster
+    {
+        public string Name { get; set; }
+        public int HP { get; set; }
+        public int Attack { get; set; }
+        public int AP { get; set; }
+        public List<string> Skills { get; set; }
+        public int OriginalHP { get; private set; }
+        public int OriginalAttack { get; private set; }
+        public int OriginalAP { get; private set; }
+
+        public Monster()
+        {
+            OriginalHP = HP;
+            OriginalAttack = Attack;
+            OriginalAP = AP;
+        }
+
+        public void ResetStats()
+        {
+            HP = OriginalHP;
+            Attack = OriginalAttack;
+            AP = OriginalAP;
+        }
+    }
+
+    public static class Monsters
+    {
+        public static Monster Slime = new Monster
+        {
+            Name = "Slime",
+            HP = 1000,
+            Attack = 30,
+            Skills = new List<string>()
+        };
+
+        public static Monster Imp = new Monster
+        {
+            Name = "Imp",
+            HP = 1500,
+            Attack = 50,
+            Skills = new List<string>()
+        };
+
+        public static Monster BloodWarrior = new Monster
+        {
+            Name = "Blood Warrior",
+            HP = 2500,
+            Attack = 100,
+            Skills = new List<string>
+            {
+                "On hit the unit heals for its ATP.",
+                "For every -200 HP the unit loses it gains 1 ATP."
+            }
+        };
+
+        public static Monster Orc = new Monster
+        {
+            Name = "Orc",
+            HP = 4000,
+            Attack = 120,
+            Skills = new List<string>
+            {
+                "The unit takes 10% less damage from ATP.",
+                "The unit has a 5% chance to dodge an attack."
+            }
+        };
+
+        public static Monster Vampire = new Monster
+        {
+            Name = "Vampire",
+            HP = 3200,
+            Attack = 100,
+            AP = 10,
+            Skills = new List<string>
+            {
+                "The unit heals 3% + 1% for every 20 AP at the end of its strike.",
+                "When the unit strikes an opponent it raises its AP by 6."
+            }
+        };
+
+        public static Monster TrapChest = new Monster
+        {
+            Name = "Trap Chest",
+            HP = 10,
+            Skills = new List<string>
+            {
+                "If it is opened it will deal 40% of the player’s max health to the player."
+            }
+        };
+
+
+    }
+}
+
+public class Boss
+{
+    public string Name { get; set; }
+    public int HP { get; set; }
+    public int Attack { get; set; }
+    public List<string> Skills { get; set; }
+}
+
+public static class Bosses
+{
+    public static Boss UndeadDragon = new Boss
+    {
+        Name = "Undead Dragon",
+        HP = 5000,
+        Attack = 150,
+        Skills = new List<string>
+            {
+                "If its health drops below 8% it will regenerate 25% of its max health.",
+                "With its attack it puts poison on the target that will deal 2% of the player's max HP."
+            }
+    };
+
+    public static Boss Cerberus = new Boss
+    {
+        Name = "Cerberus",
+        HP = 5500,
+        Attack = 100,
+        Skills = new List<string>
+            {
+                "Cerberus will attack 3 times and heals for 20% of the damage dealt.",
+                "Cerberus' attacks permanently take 3 HP from the player's max health."
+            }
+    };
+
+    public static Boss VexarTheFearDevil = new Boss
+    {
+        Name = "Vexar the Fear Devil",
+        HP = 6666,
+        Attack = 250,
+        Skills = new List<string>
+            {
+                "Gives the player -10% ATP and AP.",
+                "At 666 HP it doubles its ATP.",
+                "Every 6th attack stuns the player."
+            }
+    };
 }

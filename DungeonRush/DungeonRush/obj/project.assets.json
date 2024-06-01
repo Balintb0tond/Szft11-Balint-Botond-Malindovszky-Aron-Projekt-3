@@ -14,11 +14,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\ikt11\\project.4\\DungeonRush\\DungeonRush\\DungeonRush.csproj",
+      "projectUniqueName": "D:\\ikt11\\project.4\\DungeonRush\\Szft11-Balint-Botond-Malindovszky-Aron-Projekt-3\\DungeonRush\\DungeonRush\\DungeonRush.csproj",
       "projectName": "DungeonRush",
-      "projectPath": "D:\\ikt11\\project.4\\DungeonRush\\DungeonRush\\DungeonRush.csproj",
+      "projectPath": "D:\\ikt11\\project.4\\DungeonRush\\Szft11-Balint-Botond-Malindovszky-Aron-Projekt-3\\DungeonRush\\DungeonRush\\DungeonRush.csproj",
       "packagesPath": "C:\\Users\\balin\\.nuget\\packages\\",
-      "outputPath": "D:\\ikt11\\project.4\\DungeonRush\\DungeonRush\\obj\\",
+      "outputPath": "D:\\ikt11\\project.4\\DungeonRush\\Szft11-Balint-Botond-Malindovszky-Aron-Projekt-3\\DungeonRush\\DungeonRush\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
