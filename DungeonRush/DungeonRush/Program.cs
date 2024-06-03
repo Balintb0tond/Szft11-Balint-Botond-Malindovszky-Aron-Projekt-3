@@ -8,6 +8,8 @@ class Program
     static Monster[,] monsterLocations = new Monster[25, 25];
     static Boss[,] bossLocations = new Boss[25, 25];
     static bool[,] treasureLocations = new bool[25, 25];
+    static Weapon[,] weaponLocations = new Weapon[25, 25];
+    static Armor[,] armorLocations = new Armor[25, 25];
     static int playerX, playerY;
     static int healthPotions = 2;
     static Character player;
@@ -17,9 +19,6 @@ class Program
     static void Main(string[] args)
     {
         InitializeMap();
-        PlaceMonsters(10);
-        PlaceBoss(3);
-        PlaceTreasures(6);
 
         player = SelectCharacter();
         PlacePlayer();
@@ -30,7 +29,7 @@ class Program
         {
             Console.Clear();
             DisplayMap();
-            Console.WriteLine($"Character: {player.Type}, Attack: {player.Attack}, Life: {player.Life}, Potions: {healthPotions}");
+            Console.WriteLine($"Character: {player.Type}, Attack: {player.TotalAttack}, Life: {player.TotalLife}, Potions: {healthPotions}");
             char input = Console.ReadKey().KeyChar;
             if (input == 'q' || input == 'Q')
                 break;
@@ -46,17 +45,14 @@ class Program
         {
             for (int j = 0; j < 25; j++)
             {
-                int tile = rand.Next(100);
-                if (tile < 60)
-                    map[i, j] = '_'; // Plains
-                else if (tile < 75)
-                    map[i, j] = '~'; // Rivers
-                else if (tile < 90)
-                    map[i, j] = '^'; // Mountains
-                else
-                    map[i, j] = '='; // Swamps
+                map[i, j] = '_';
             }
         }
+
+        PlaceMonsters(10);
+        PlaceBoss(3);
+        PlaceTreasures(6);
+        PlaceChests(5); // Place 5 chests on the map
     }
 
     static void PlaceMonsters(int count)
@@ -113,6 +109,29 @@ class Program
         PlaceItems(count, treasureLocations);
     }
 
+    static void PlaceChests(int count)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            int x, y;
+            do
+            {
+                x = rand.Next(25);
+                y = rand.Next(25);
+            }
+            while (weaponLocations[x, y] != null || armorLocations[x, y] != null || map[x, y] == '~' || map[x, y] == '^');
+
+            if (rand.Next(2) == 0)
+            {
+                weaponLocations[x, y] = new Weapon("Sword", rand.Next(50, 400));
+            }
+            else
+            {
+                armorLocations[x, y] = new Armor("Shield", rand.Next(2000, 5000)); 
+            }
+        }
+    }
+
     static void PlaceItems(int count, bool[,] locations)
     {
         for (int i = 0; i < count; i++)
@@ -134,8 +153,8 @@ class Program
         switch (Console.ReadKey().KeyChar)
         {
             case '1': return new Character("Warrior", 100, 3000);
-            case '2': return new Character("Mage", 6, 2);
-            case '3': return new Character("Rogue", 6, 3);
+            case '2': return new Character("Mage", 120, 2500);
+            case '3': return new Character("Rogue", 140, 2300);
             default: return SelectCharacter();
         }
     }
@@ -161,6 +180,8 @@ class Program
                     Console.Write('M');
                 else if (bossLocations[i, j] != null)
                     Console.Write('B');
+                else if (weaponLocations[i, j] != null || armorLocations[i, j] != null)
+                    Console.Write('C'); // Display chests as 'C'
                 else
                     Console.Write(map[i, j]);
             }
@@ -189,12 +210,34 @@ class Program
         else if (bossLocations[playerX, playerY] != null)
         {
             FightBoss(bossLocations[playerX, playerY]);
-            monsterLocations[playerX, playerY] = null; // Remove the monster after the fight
+            bossLocations[playerX, playerY] = null; // Remove the boss after the fight
         }
         else if (treasureLocations[playerX, playerY])
         {
             Console.WriteLine("You found a treasure!");
             treasureLocations[playerX, playerY] = false;
+        }
+        else if (weaponLocations[playerX, playerY] != null)
+        {
+            Weapon foundWeapon = weaponLocations[playerX, playerY];
+            Console.WriteLine($"You found a weapon: {foundWeapon.Name} with {foundWeapon.AttackBoost} attack boost.");
+            Console.WriteLine("Do you want to swap it with your current weapon? (y/n)");
+            if (Console.ReadKey().KeyChar == 'y')
+            {
+                player.EquippedWeapon = foundWeapon;
+            }
+            weaponLocations[playerX, playerY] = null;
+        }
+        else if (armorLocations[playerX, playerY] != null)
+        {
+            Armor foundArmor = armorLocations[playerX, playerY];
+            Console.WriteLine($"You found an armor: {foundArmor.Name} with {foundArmor.LifeBoost} life boost.");
+            Console.WriteLine("Do you want to swap it with your current armor? (y/n)");
+            if (Console.ReadKey().KeyChar == 'y')
+            {
+                player.EquippedArmor = foundArmor;
+            }
+            armorLocations[playerX, playerY] = null;
         }
     }
 
@@ -203,14 +246,14 @@ class Program
         Console.WriteLine($"You encountered a {monster.Name}!");
         while (player.Life > 0 && monster.HP > 0)
         {
-            Console.WriteLine($"Player HP: {player.Life}, Monster HP: {monster.HP}");
+            Console.WriteLine($"Player HP: {player.TotalLife}, Monster HP: {monster.HP}");
             Console.WriteLine("Choose your action: (1) Attack, (2) Use Skill");
             char input = Console.ReadKey().KeyChar;
 
             int playerDamage = 0;
             if (input == '1')
             {
-                playerDamage = player.Attack + rand.Next(1, 7);
+                playerDamage = player.TotalAttack + rand.Next(1, 7);
                 Console.WriteLine($"You attacked the {monster.Name} for {playerDamage} damage.");
             }
             else if (input == '2')
@@ -229,13 +272,13 @@ class Program
                 else
                 {
                     Console.WriteLine("You have no skills to use. Defaulting to attack.");
-                    playerDamage = player.Attack + rand.Next(1, 7);
+                    playerDamage = player.TotalAttack + rand.Next(1, 7);
                 }
             }
             else
             {
                 Console.WriteLine("Invalid choice. Defaulting to attack.");
-                playerDamage = player.Attack + rand.Next(1, 7);
+                playerDamage = player.TotalAttack + rand.Next(1, 7);
             }
 
             monster.HP -= playerDamage;
@@ -263,14 +306,14 @@ class Program
         Console.WriteLine($"You encountered a {boss.Name}!");
         while (player.Life > 0 && boss.HP > 0)
         {
-            Console.WriteLine($"Player HP: {player.Life}, Monster HP: {boss.HP}");
+            Console.WriteLine($"Player HP: {player.TotalLife}, Boss HP: {boss.HP}");
             Console.WriteLine("Choose your action: (1) Attack, (2) Use Skill");
             char input = Console.ReadKey().KeyChar;
 
             int playerDamage = 0;
             if (input == '1')
             {
-                playerDamage = player.Attack + rand.Next(1, 7);
+                playerDamage = player.TotalAttack + rand.Next(1, 7);
                 Console.WriteLine($"You attacked the {boss.Name} for {playerDamage} damage.");
             }
             else if (input == '2')
@@ -289,13 +332,13 @@ class Program
                 else
                 {
                     Console.WriteLine("You have no skills to use. Defaulting to attack.");
-                    playerDamage = player.Attack + rand.Next(1, 7);
+                    playerDamage = player.TotalAttack + rand.Next(1, 7);
                 }
             }
             else
             {
                 Console.WriteLine("Invalid choice. Defaulting to attack.");
-                playerDamage = player.Attack + rand.Next(1, 7);
+                playerDamage = player.TotalAttack + rand.Next(1, 7);
             }
 
             boss.HP -= playerDamage;
@@ -327,6 +370,8 @@ public class Character
     public int Attack { get; set; }
     public int Life { get; set; }
     public List<string> Skills { get; set; }
+    public Weapon EquippedWeapon { get; set; }
+    public Armor EquippedArmor { get; set; }
 
     public Character(string type, int attack, int life)
     {
@@ -334,6 +379,8 @@ public class Character
         Attack = attack;
         Life = life;
         Skills = new List<string>();
+        EquippedWeapon = null;
+        EquippedArmor = null;
     }
 
     public int UseSkill(int skillIndex)
@@ -343,6 +390,46 @@ public class Character
 
         // Skill logic here; for now we return a fixed value for simplicity
         return Attack + 10; // This is an example, customize as needed
+    }
+
+    public int TotalAttack
+    {
+        get
+        {
+            return Attack + (EquippedWeapon?.AttackBoost ?? 0);
+        }
+    }
+
+    public int TotalLife
+    {
+        get
+        {
+            return Life + (EquippedArmor?.LifeBoost ?? 0);
+        }
+    }
+}
+
+public class Weapon
+{
+    public string Name { get; set; }
+    public int AttackBoost { get; set; }
+
+    public Weapon(string name, int attackBoost)
+    {
+        Name = name;
+        AttackBoost = attackBoost;
+    }
+}
+
+public class Armor
+{
+    public string Name { get; set; }
+    public int LifeBoost { get; set; }
+
+    public Armor(string name, int lifeBoost)
+    {
+        Name = name;
+        LifeBoost = lifeBoost;
     }
 }
 
